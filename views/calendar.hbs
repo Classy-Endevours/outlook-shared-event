@@ -1,0 +1,28 @@
+<h1 class="mb-3">Calendar</h1>
+<a href="/calendar/new" class="btn btn-light btn-sm mb-3">New event</a>
+<table class="table">
+  <thead>
+    <tr>
+      <th scope="col">Name</th>
+      <th scope="col">Can edit</th>
+      <th scope="col">Can share</th>
+      <th scope="col">Is default calender</th>
+      <th scope="col">Create event here</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{#each events}}
+      <tr>
+        <td>{{this.name}}</td>
+        <td>{{this.canEdit}}</td>
+        <td>{{this.canShare}}</td>
+        <td>{{this.isDefaultCalendar}}</td>
+        <td>
+        <a href="/calendar/new?calendar={{this.id}}" >
+        Create event
+        </a>
+        </td>
+      </tr>
+    {{/each}}
+  </tbody>
+</table>

@@ -10,9 +10,36 @@ const msal = require('@azure/msal-node');
 
 const indexRouter = require('./routes/index');
 const usersRouter = require('./routes/users');
+const authRouter = require('./routes/auth');
+var calendarRouter = require('./routes/calendar');
+
 require('dotenv').config();
 const app = express();
+// In-memory storage of logged-in users
+// For demo purposes only, production apps should store
+// this in a reliable storage
+app.locals.users = {};
 
+// MSAL config
+const msalConfig = {
+  auth: {
+    clientId: process.env.OAUTH_APP_ID,
+    authority: process.env.OAUTH_AUTHORITY,
+    clientSecret: process.env.OAUTH_APP_SECRET
+  },
+  system: {
+    loggerOptions: {
+      loggerCallback(loglevel, message, containsPii) {
+        console.log(message);
+      },
+      piiLoggingEnabled: false,
+      logLevel: msal.LogLevel.Verbose,
+    }
+  }
+};
+
+// Create msal application object
+app.locals.msalClient = new msal.ConfidentialClientApplication(msalConfig);
 // Session middleware
 // NOTE: Uses default in-memory session store, which is not
 // suitable for production
@@ -52,6 +79,15 @@ app.use(function(req, res, next) {
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'hbs');
 
+var hbs = require('hbs');
+var parseISO = require('date-fns/parseISO');
+var formatDate = require('date-fns/format');
+// Helper to format date/time sent by Graph
+hbs.registerHelper('eventDateTime', function(dateTime) {
+  const date = parseISO(dateTime);
+  return formatDate(date, 'M/d/yy h:mm a');
+});
+
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -60,6 +96,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
+app.use('/auth', authRouter);
+app.use('/calendar', calendarRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

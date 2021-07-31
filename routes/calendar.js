@@ -75,6 +75,69 @@ router.get('/',
     }
   }
 );
+
+router.get('/raw',
+  async function(req, res) {
+    if (!req.session.userId) {
+      res.status(401).send('Unauthorized!')
+    } else {
+      const params = {
+        active: { calendar: true }
+      };
+
+      // Get the user
+      const user = req.app.locals.users[req.session.userId];
+      // Convert user's Windows time zone ("Pacific Standard Time")
+      // to IANA format ("America/Los_Angeles")
+      const timeZoneId = iana.findIana(user.timeZone)[0];
+      console.log(`Time zone: ${timeZoneId?.valueOf()}`);
+
+      // Calculate the start and end of the current week
+      // Get midnight on the start of the current week in the user's timezone,
+      // but in UTC. For example, for Pacific Standard Time, the time value would be
+      // 07:00:00Z
+      var weekStart = zonedTimeToUtc(startOfWeek(new Date()), timeZoneId?.valueOf());
+      var weekEnd = addDays(weekStart, 7);
+      console.log(`Start: ${formatISO(weekStart)}`);
+
+      // Get the access token
+      var accessToken;
+      try {
+        accessToken = await getAccessToken(req.session.userId, req.app.locals.msalClient);
+      } catch (err) {
+        
+        res.status(500).send('Could not get access token. Try signing out and signing in again.!')
+
+        return;
+      }
+
+      if (accessToken && accessToken.length > 0) {
+        try {
+          // Get the events
+          const events = await graph.getCalendarView(
+            accessToken,
+            formatISO(weekStart),
+            formatISO(weekEnd),
+            user.timeZone);
+          
+          const users = await graph.getUsers(accessToken);
+
+          params.users = users.value;
+          params.events = events.value;
+        } catch (err) {
+          res.status(500).send('Could not get calendars!')
+        }
+      }
+      else {
+        res.status(401).send('Could not get access token. Try signing out and signing in again.!')
+      }
+      res.status(200).send({
+        ...params
+      })
+    }
+  }
+);
+
 async function getAccessToken(userId, msalClient) {
   // Look up the user's account in the cache
   try {
